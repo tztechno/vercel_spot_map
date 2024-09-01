@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map with Name Filter</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #controls {
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+
+        #map-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <button onclick="getPoints()">Get Points</button>
+        <select id="nameFilter" onchange="filterPoints()">
+            <option value="">All Names</option>
+        </select>
+    </div>
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <script>
+        var map;
+        var geojsonLayer;
+        var webAppUrl = 'https://script.google.com/macros/s/AKfycbwI6iyz5IIGuzRLh1HmkVqaaxBqMkT431ZU3mmAcBQJhVua5uiSpNUgd-Jh4Z38wawrAA/exec';
+
+        function initMap() {
+            map = L.map('map').setView([35.6895, 139.6917], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        function getPoints() {
+            fetch(webAppUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (geojsonLayer) {
+                        map.removeLayer(geojsonLayer);
+                    }
+                    geojsonLayer = L.geoJSON(data, {
+                        onEachFeature: (feature, layer) => {
+                            if (feature.properties) {
+                                layer.bindPopup(`<b>${feature.properties.name}</b>`);
+                            }
+                        }
+                    }).addTo(map);
+                    updateNameFilter(data);
+                    map.fitBounds(geojsonLayer.getBounds());
+                });
+        }
+
+        function updateNameFilter(data) {
+            const nameFilter = document.getElementById('nameFilter');
+            const names = new Set(data.features.map(f => f.properties.name));
+            nameFilter.innerHTML = '<option value="">All Names</option>';
+            names.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                nameFilter.appendChild(option);
+            });
+        }
+
+        function filterPoints() {
+            const selectedName = document.getElementById('nameFilter').value;
+            geojsonLayer.eachLayer(layer => {
+                if (selectedName === '' || layer.feature.properties.name === selectedName) {
+                    layer.addTo(map);
+                } else {
+                    map.removeLayer(layer);
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+
+</html>
